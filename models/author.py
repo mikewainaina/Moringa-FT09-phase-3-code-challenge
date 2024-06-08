@@ -1,100 +1,71 @@
 from database.connection import get_db_connection
 
 class Author:
-    all = {}
     def __init__(self, id, name):
-        self.id = id
+        self._id = id
         self.name = name
-
-    def __repr__(self):
-        return f'<Author {self.id} {self.name}>'
-    
 
     @property
     def id(self):
         return self._id
-    
+
     @id.setter
     def id(self, id):
-        if isinstance(id, int):
-            self._id = id
-
+        if not isinstance(id, int):
+            raise TypeError("id must be of type int")
+        self._id = id
 
     @property
     def name(self):
         return self._name
-    
+
     @name.setter
-    def name(self, new_name):
+    def name(self, name):
+        if not isinstance(name, str):
+            raise TypeError("name must be of type str")
+        if len(name) == 0:
+            raise ValueError("name must be longer than 0 characters")
         if hasattr(self, '_name'):
-            raise AttributeError("Name cannot be changed after initialization")
-        else:
-            if isinstance(new_name, str):
-                if len(new_name) > 0:
-                    self._name = new_name
+            raise AttributeError("name cannot be changed once set")
+        self._name = name
 
-
-    def save(self):
-        conn = get_db_connection()
-        CURSOR = conn.cursor()
-        sql = """
-            INSERT INTO authors (name)
-            VALUES (?)
-        """
-        CURSOR.execute(sql, (self.name,))
-        conn.commit()
-        
-        self.id = CURSOR.lastrowid
-        type(self).all[self.id] = self
-
-    @classmethod
-    #creates a new entry in the authors table of the database
-    def create(cls, name):
-        author = cls(name)
-        author.save()
-        return author
-    
-    def get_author_id(self):
-        return self.id
-
+    @property
     def articles(self):
         from models.article import Article
         conn = get_db_connection()
-        CURSOR = conn.cursor()
-        """retrieves and returns a list of articles wriitten by this author"""
-        sql = """
-            SELECT ar.*
-            FROM articles ar
-            INNER JOIN authors a ON ar.author = a.id
-            WHERE a.id = ?
-        """
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT a.id, a.title, a.content, a.author_id, a.magazine_id
+            FROM articles a
+            JOIN authors au ON a.author_id = au.id
+            WHERE au.id = ?
+        ''', (self.id,))
+        article_info = cursor.fetchall()
+        conn.close()
+        if article_info:
+            return [Article(article["id"], article['title'], article['content'], article['author_id'], article['magazine_id']) for article in article_info]
+        else:
+            return []
 
-        CURSOR.execute(sql, (self.id,))
-        article_data = CURSOR.fetchall()
-
-        articles = []
-        for row in article_data:
-            articles.append(Article(*row))
-        return articles
-    
-
+    @property
     def magazines(self):
         from models.magazine import Magazine
         conn = get_db_connection()
-        CURSOR = conn.cursor()
-        """Retrieves and returns a list of Magazine objects where this Author has written articles"""
-        sql = """
-            SELECT DISTINCT m.*
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT DISTINCT m.id, m.name, m.category
             FROM magazines m
-            INNER JOIN articles ar ON ar.magazine = m.id
-            INNER JOIN authors a ON ar.author = a.id
-            WHERE a.id = ?
-        """
+            JOIN articles a ON m.id = a.magazine_id
+            WHERE a.author_id = ?
+        ''', (self.id,))
+        magazine_info = cursor.fetchall()
+        conn.close()
+        if magazine_info:
+            return [Magazine(magazine["id"], magazine['name'], magazine['category']) for magazine in magazine_info]
+        else:
+            return []
 
-        CURSOR.execute(sql, (self.id,))
-        magazine_data = CURSOR.fetchall()
-
-        magazines = []
-        for row in magazine_data:
-            magazines.append(Magazine(*row))
-        return magazines
+    def __repr__(self):
+        article_titles = ", ".join([article.title for article in self.articles]) if self.articles else "None"
+        magazine_titles = ", ".join([magazine.name for magazine in self.magazines]) if self.magazines else "None"
+        return f'<Author: {self.name} | id: {self.id} | MAGAZINES:{magazine_titles} | ARTICLES:{article_titles}>'

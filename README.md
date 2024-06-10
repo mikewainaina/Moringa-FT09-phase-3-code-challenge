@@ -1,6 +1,3 @@
-[Screencast from 06-10-2024 01:59:16 PM.webm](https://github.com/mikewainaina/BankOfFlatiron-22/assets/162094676/32450037-f96c-4602-9153-ac535cc75f5c)
-
-
 # Phase 3 -WK3 - Code Challenge: Articles - with database
 
 In this code challenge, you will be working with a Magazine domain.
